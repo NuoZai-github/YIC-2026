@@ -89,6 +89,9 @@ export default function DetectorUI() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const res = await fetch(`${apiUrl}/api/analyze/image`, {
         method: "POST",
+        headers: {
+          "Bypass-Tunnel-Reminder": "true"
+        },
         body: formData,
       });
       const data = await res.json();
@@ -124,6 +127,7 @@ export default function DetectorUI() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Bypass-Tunnel-Reminder": "true"
         },
         body: JSON.stringify({ text }),
       });
