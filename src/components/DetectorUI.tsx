@@ -4,7 +4,49 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Mic, ClipboardPaste, AlertTriangle, ShieldCheck, Loader2, Volume2, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function DetectorUI() {
+// --- i18n Dictionaries ---
+const dict = {
+  zh: {
+    title: "安全小助手",
+    subtitle: "把觉得可疑的信息发给我，我帮你把关！",
+    placeholder: "在这里输入、粘贴信息，或者使用下方的快捷按钮...",
+    clear: "清空",
+    paste: "一键粘贴",
+    uploadImage: "传截图",
+    holdToSpeak: "按住说话",
+    stopRecording: "停止录音",
+    analyzeBtn: "帮我看看是不是骗局",
+    analyzing: "正在仔细帮您查看...",
+    errEmpty: "请先输入或粘贴需要检测的内容！",
+    errClipboard: "无法读取剪贴板，请手动粘贴。",
+    errServer: "服务器连接失败，请确保后台已运行。",
+    errAnalysis: "分析失败，请重试。",
+    warningTitle: "警告：极大可能是诈骗！",
+    safeTitle: "放心：这是安全的",
+    warningFooter: "⚠️ 千万不要转账！千万不要点链接！"
+  },
+  en: {
+    title: "Safety Assistant",
+    subtitle: "Send me suspicious messages, I'll check them for you!",
+    placeholder: "Type, paste your message here, or use the quick buttons below...",
+    clear: "Clear",
+    paste: "Paste",
+    uploadImage: "Upload Image",
+    holdToSpeak: "Hold to Speak",
+    stopRecording: "Stop Recording",
+    analyzeBtn: "Check if this is a scam",
+    analyzing: "Checking carefully for you...",
+    errEmpty: "Please enter or paste content to check first!",
+    errClipboard: "Could not read clipboard. Please paste manually.",
+    errServer: "Server connection failed. Please ensure backend is running.",
+    errAnalysis: "Analysis failed. Please try again.",
+    warningTitle: "WARNING: High Probability of Scam!",
+    safeTitle: "SAFE: This is secure",
+    warningFooter: "⚠️ NEVER transfer money! NEVER click the links!"
+  }
+};
+
+export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
   const [text, setText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<{ is_danger: boolean; analysis: string; extracted_text?: string } | null>(null);
@@ -13,8 +55,9 @@ export default function DetectorUI() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const speechRecognitionRef = useRef<any>(null);
+  
+  const t = dict[lang];
 
-  // Initialize Speech Recognition for Voice Input
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -22,8 +65,7 @@ export default function DetectorUI() {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US'; // Default to English
-
+        
         recognition.onresult = (event: any) => {
           let currentTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -51,6 +93,16 @@ export default function DetectorUI() {
     }
   }, []);
 
+  // Update recognition language when UI language changes
+  useEffect(() => {
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.lang = lang === "zh" ? 'zh-CN' : 'en-US';
+    }
+    // Clear results when switching language to avoid mixed language UI
+    setResult(null);
+    setErrorMsg("");
+  }, [lang]);
+
   const handlePaste = async () => {
     try {
       const clipboardText = await navigator.clipboard.readText();
@@ -58,7 +110,7 @@ export default function DetectorUI() {
         setText(clipboardText);
       }
     } catch (err) {
-      setErrorMsg("Failed to read clipboard, please paste manually.");
+      setErrorMsg(t.errClipboard);
     }
   };
 
@@ -67,7 +119,7 @@ export default function DetectorUI() {
       speechRecognitionRef.current?.stop();
       setIsRecording(false);
     } else {
-      setText(""); // Clear previous text when starting a new recording
+      setText("");
       speechRecognitionRef.current?.start();
       setIsRecording(true);
     }
@@ -83,9 +135,9 @@ export default function DetectorUI() {
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("language", lang);
 
     try {
-      // Pointing to public or local FastAPI backend
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const res = await fetch(`${apiUrl}/api/analyze/image`, {
         method: "POST",
@@ -102,18 +154,19 @@ export default function DetectorUI() {
           setText(data.extracted_text);
         }
       } else {
-        setErrorMsg(data.message || "Analysis failed, please try again.");
+        setErrorMsg(data.message || t.errAnalysis);
       }
     } catch (err) {
-      setErrorMsg("Server connection failed, please ensure the backend is running.");
+      setErrorMsg(t.errServer);
     } finally {
       setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const analyzeText = async () => {
     if (!text.trim()) {
-      setErrorMsg("Please enter or paste the content to check first!");
+      setErrorMsg(t.errEmpty);
       return;
     }
 
@@ -129,17 +182,17 @@ export default function DetectorUI() {
           "Content-Type": "application/json",
           "Bypass-Tunnel-Reminder": "true"
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, language: lang }),
       });
       const data = await res.json();
       
       if (data.status === "success") {
         setResult(data);
       } else {
-        setErrorMsg(data.message || "Analysis failed, please try again.");
+        setErrorMsg(data.message || t.errAnalysis);
       }
     } catch (err) {
-      setErrorMsg("Server connection failed, please ensure the backend is running.");
+      setErrorMsg(t.errServer);
     } finally {
       setIsAnalyzing(false);
     }
@@ -148,45 +201,43 @@ export default function DetectorUI() {
   const speakResult = () => {
     if (!result) return;
     const utterance = new SpeechSynthesisUtterance(result.analysis);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9; // Slightly slower for elderly
+    utterance.lang = lang === "zh" ? 'zh-CN' : 'en-US';
+    utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-3xl shadow-xl border border-gray-100 mt-8">
+    <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-3xl shadow-xl border border-gray-100 mt-4 sm:mt-8 relative z-10">
       <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Security Assistant</h1>
-        <p className="text-lg sm:text-xl text-gray-600">Send me suspicious messages, and I'll help you check!</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">{t.title}</h1>
+        <p className="text-lg sm:text-xl text-gray-600">{t.subtitle}</p>
       </div>
 
-      {/* Input Area */}
       <div className="space-y-4">
         <div className="relative">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Type or paste messages here, or use the quick buttons below..."
+            placeholder={t.placeholder}
             className="w-full h-40 sm:h-48 p-4 sm:p-6 text-xl sm:text-2xl border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all resize-none"
           />
           {text && (
             <button 
               onClick={() => setText("")} 
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 font-medium"
             >
-              Clear
+              {t.clear}
             </button>
           )}
         </div>
 
-        {/* Quick Actions (Elderly Friendly Big Buttons) */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           <button
             onClick={handlePaste}
             className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
           >
             <ClipboardPaste className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600 mb-2" />
-            <span className="text-lg sm:text-xl font-medium text-gray-700">Paste</span>
+            <span className="text-base sm:text-xl font-medium text-gray-700">{t.paste}</span>
           </button>
           
           <button
@@ -194,7 +245,7 @@ export default function DetectorUI() {
             className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
           >
             <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-green-600 mb-2" />
-            <span className="text-lg sm:text-xl font-medium text-gray-700">Upload Image</span>
+            <span className="text-base sm:text-xl font-medium text-gray-700">{t.uploadImage}</span>
             <input 
               type="file" 
               accept="image/*" 
@@ -217,25 +268,24 @@ export default function DetectorUI() {
             ) : (
               <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500 mb-2" />
             )}
-            <span className={`text-lg sm:text-xl font-medium ${isRecording ? 'text-red-700' : 'text-gray-700'}`}>
-              {isRecording ? 'Stop Recording' : 'Press & Speak'}
+            <span className={`text-base sm:text-xl font-medium ${isRecording ? 'text-red-700' : 'text-gray-700'}`}>
+              {isRecording ? t.stopRecording : t.holdToSpeak}
             </span>
           </button>
         </div>
 
-        {/* Primary Action Button */}
         <button
           onClick={analyzeText}
           disabled={isAnalyzing || (!text.trim() && !isRecording)}
-          className="w-full mt-6 py-5 sm:py-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-2xl text-2xl sm:text-3xl font-bold shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center"
+          className="w-full mt-6 py-5 sm:py-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-2xl text-xl sm:text-3xl font-bold shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center"
         >
           {isAnalyzing ? (
             <>
               <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin mr-3" />
-              Analyzing carefully...
+              {t.analyzing}
             </>
           ) : (
-            "Check if this is a scam"
+            t.analyzeBtn
           )}
         </button>
       </div>
@@ -246,7 +296,6 @@ export default function DetectorUI() {
         </div>
       )}
 
-      {/* Result Area */}
       <AnimatePresence>
         {result && (
           <motion.div
@@ -267,14 +316,13 @@ export default function DetectorUI() {
                 ) : (
                   <ShieldCheck className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mr-4" />
                 )}
-                <h2 className={`text-3xl sm:text-4xl font-bold ${result.is_danger ? 'text-red-700' : 'text-green-700'}`}>
-                  {result.is_danger ? 'Warning: Highly likely a scam!' : 'Safe: This is secure'}
+                <h2 className={`text-2xl sm:text-4xl font-bold ${result.is_danger ? 'text-red-700' : 'text-green-700'}`}>
+                  {result.is_danger ? t.warningTitle : t.safeTitle}
                 </h2>
               </div>
               <button 
                 onClick={speakResult}
                 className="p-3 bg-white rounded-full shadow hover:bg-gray-50 text-blue-600 transition-colors"
-                title="Read to me"
               >
                 <Volume2 className="w-8 h-8" />
               </button>
@@ -289,7 +337,7 @@ export default function DetectorUI() {
             {result.is_danger && (
               <div className="mt-6 pt-6 border-t border-red-200/50">
                 <p className="text-xl sm:text-2xl font-bold text-red-600 text-center">
-                  ⚠️ DO NOT transfer money! DO NOT click any links!
+                  {t.warningFooter}
                 </p>
               </div>
             )}
