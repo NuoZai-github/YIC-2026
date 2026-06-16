@@ -15,8 +15,8 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight">反诈护航员</h1>
-          <p className="mt-4 text-xl sm:text-2xl text-gray-600 font-medium">永远保护您的财产安全</p>
+          <h1 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight">Scam Shield</h1>
+          <p className="mt-4 text-xl sm:text-2xl text-gray-600 font-medium">Protecting your financial security</p>
         </header>
 
         {/* Main Interactive Component */}
@@ -24,7 +24,7 @@ export default function Home() {
         
         {/* Footer for extra reassurance */}
         <footer className="mt-16 text-center text-gray-500">
-          <p className="text-lg">✅ 本地运行，完全免费，绝不泄露您的任何隐私。</p>
+          <p className="text-lg">✅ Runs locally, 100% free, and never leaks your privacy.</p>
         </footer>
       </div>
     </main>

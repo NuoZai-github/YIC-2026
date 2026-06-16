@@ -22,7 +22,7 @@ export default function DetectorUI() {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'zh-CN'; // Default to Chinese
+        recognition.lang = 'en-US'; // Default to English
 
         recognition.onresult = (event: any) => {
           let currentTranscript = '';
@@ -58,7 +58,7 @@ export default function DetectorUI() {
         setText(clipboardText);
       }
     } catch (err) {
-      setErrorMsg("无法读取剪贴板，请手动粘贴。");
+      setErrorMsg("Failed to read clipboard, please paste manually.");
     }
   };
 
@@ -102,10 +102,10 @@ export default function DetectorUI() {
           setText(data.extracted_text);
         }
       } else {
-        setErrorMsg(data.message || "分析失败，请重试。");
+        setErrorMsg(data.message || "Analysis failed, please try again.");
       }
     } catch (err) {
-      setErrorMsg("服务器连接失败，请确保后台已运行。");
+      setErrorMsg("Server connection failed, please ensure the backend is running.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -113,7 +113,7 @@ export default function DetectorUI() {
 
   const analyzeText = async () => {
     if (!text.trim()) {
-      setErrorMsg("请先输入或粘贴需要检测的内容！");
+      setErrorMsg("Please enter or paste the content to check first!");
       return;
     }
 
@@ -136,10 +136,10 @@ export default function DetectorUI() {
       if (data.status === "success") {
         setResult(data);
       } else {
-        setErrorMsg(data.message || "分析失败，请重试。");
+        setErrorMsg(data.message || "Analysis failed, please try again.");
       }
     } catch (err) {
-      setErrorMsg("服务器连接失败，请确保后台已运行。");
+      setErrorMsg("Server connection failed, please ensure the backend is running.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -148,7 +148,7 @@ export default function DetectorUI() {
   const speakResult = () => {
     if (!result) return;
     const utterance = new SpeechSynthesisUtterance(result.analysis);
-    utterance.lang = 'zh-CN';
+    utterance.lang = 'en-US';
     utterance.rate = 0.9; // Slightly slower for elderly
     window.speechSynthesis.speak(utterance);
   };
@@ -156,8 +156,8 @@ export default function DetectorUI() {
   return (
     <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-3xl shadow-xl border border-gray-100 mt-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">安全小助手</h1>
-        <p className="text-lg sm:text-xl text-gray-600">把觉得可疑的信息发给我，我帮你把关！</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Security Assistant</h1>
+        <p className="text-lg sm:text-xl text-gray-600">Send me suspicious messages, and I'll help you check!</p>
       </div>
 
       {/* Input Area */}
@@ -166,7 +166,7 @@ export default function DetectorUI() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="在这里输入、粘贴信息，或者使用下方的快捷按钮..."
+            placeholder="Type or paste messages here, or use the quick buttons below..."
             className="w-full h-40 sm:h-48 p-4 sm:p-6 text-xl sm:text-2xl border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all resize-none"
           />
           {text && (
@@ -174,7 +174,7 @@ export default function DetectorUI() {
               onClick={() => setText("")} 
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2"
             >
-              清空
+              Clear
             </button>
           )}
         </div>
@@ -186,7 +186,7 @@ export default function DetectorUI() {
             className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
           >
             <ClipboardPaste className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600 mb-2" />
-            <span className="text-lg sm:text-xl font-medium text-gray-700">一键粘贴</span>
+            <span className="text-lg sm:text-xl font-medium text-gray-700">Paste</span>
           </button>
           
           <button
@@ -194,7 +194,7 @@ export default function DetectorUI() {
             className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
           >
             <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-green-600 mb-2" />
-            <span className="text-lg sm:text-xl font-medium text-gray-700">传截图</span>
+            <span className="text-lg sm:text-xl font-medium text-gray-700">Upload Image</span>
             <input 
               type="file" 
               accept="image/*" 
@@ -218,7 +218,7 @@ export default function DetectorUI() {
               <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500 mb-2" />
             )}
             <span className={`text-lg sm:text-xl font-medium ${isRecording ? 'text-red-700' : 'text-gray-700'}`}>
-              {isRecording ? '停止录音' : '按住说话'}
+              {isRecording ? 'Stop Recording' : 'Press & Speak'}
             </span>
           </button>
         </div>
@@ -232,10 +232,10 @@ export default function DetectorUI() {
           {isAnalyzing ? (
             <>
               <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin mr-3" />
-              正在仔细帮您查看...
+              Analyzing carefully...
             </>
           ) : (
-            "帮我看看是不是骗局"
+            "Check if this is a scam"
           )}
         </button>
       </div>
@@ -268,13 +268,13 @@ export default function DetectorUI() {
                   <ShieldCheck className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mr-4" />
                 )}
                 <h2 className={`text-3xl sm:text-4xl font-bold ${result.is_danger ? 'text-red-700' : 'text-green-700'}`}>
-                  {result.is_danger ? '警告：极大可能是诈骗！' : '放心：这是安全的'}
+                  {result.is_danger ? 'Warning: Highly likely a scam!' : 'Safe: This is secure'}
                 </h2>
               </div>
               <button 
                 onClick={speakResult}
                 className="p-3 bg-white rounded-full shadow hover:bg-gray-50 text-blue-600 transition-colors"
-                title="读给我听"
+                title="Read to me"
               >
                 <Volume2 className="w-8 h-8" />
               </button>
@@ -289,7 +289,7 @@ export default function DetectorUI() {
             {result.is_danger && (
               <div className="mt-6 pt-6 border-t border-red-200/50">
                 <p className="text-xl sm:text-2xl font-bold text-red-600 text-center">
-                  ⚠️ 千万不要转账！千万不要点链接！
+                  ⚠️ DO NOT transfer money! DO NOT click any links!
                 </p>
               </div>
             )}
