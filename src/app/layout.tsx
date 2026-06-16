@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Scam Guard | 反诈护航员",
-  description: "Protecting our elders from digital scams with local AI.",
+  description: "Protecting users worldwide from digital scams with local AI.",
 };
 
 export default function RootLayout({

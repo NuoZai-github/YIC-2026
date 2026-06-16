@@ -20,8 +20,8 @@ export default function HowItWorks() {
     },
     {
       icon: <BellRing className="w-10 h-10 text-red-500" />,
-      zh: { title: "3. 温和的警示", desc: "用最通俗易懂的话，直接告诉长辈这是安全的问候，还是危险的骗局。" },
-      en: { title: "3. Gentle Warning", desc: "Using clear language to tell elders if it's a safe greeting or a dangerous scam." }
+      zh: { title: "3. 温和的警示", desc: "用最通俗易懂的话，直接告诉您这是安全的问候，还是危险的骗局。" },
+      en: { title: "3. Clear Warning", desc: "Using clear language to tell you if it's a safe greeting or a dangerous scam." }
     }
   ];
 

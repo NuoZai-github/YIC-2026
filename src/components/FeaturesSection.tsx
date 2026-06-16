@@ -23,8 +23,8 @@ export default function FeaturesSection() {
     {
       icon: <Mic2 className="w-8 h-8 text-white" />,
       color: "bg-purple-500",
-      zh: { title: "专为长者设计", desc: "大字号、语音输入、直接传截图。无需打字，轻松操作，结果还会直接读给长辈听。" },
-      en: { title: "Elderly Friendly", desc: "Large fonts, voice input, and image uploads. No typing needed, and results are spoken out loud." }
+      zh: { title: "极简交互设计", desc: "大字号、语音输入、直接传截图。无需繁琐操作，结果直接语音播报，适合全球所有年龄层。" },
+      en: { title: "Universal Design", desc: "Voice input and image uploads. No typing needed, with spoken results, making it accessible for everyone." }
     }
   ];
 

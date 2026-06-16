@@ -9,14 +9,14 @@ export default function HeroSection() {
 
   const dict = {
     zh: {
-      headline: "守护长辈的数字防线",
-      subheadline: "免费、本地驱动的 AI 防诈骗助手。只需一键粘贴或长按说话，立刻识别短信、微信、电话里的诈骗套路。",
+      headline: "守护您的数字防线",
+      subheadline: "免费、本地驱动的 AI 防诈骗助手。只需一键粘贴或长按说话，立刻为您识别全球范围内的各种诈骗套路。",
       cta: "立即开始检测",
       badge: "100% 免费 · 绝对隐私保护"
     },
     en: {
-      headline: "Protecting Our Elders from Digital Scams",
-      subheadline: "A free, local AI-driven scam detector. Simply paste or use voice to instantly identify scams in texts, chats, and calls.",
+      headline: "Your Digital Defense Line",
+      subheadline: "A free, local AI-driven scam detector. Simply paste or use voice to instantly identify scams worldwide.",
       cta: "Start Detecting Now",
       badge: "100% Free · Absolute Privacy"
     }
@@ -47,9 +47,9 @@ export default function HeroSection() {
         className="text-5xl sm:text-7xl font-black text-gray-900 tracking-tight leading-tight mb-6"
       >
         {lang === "zh" ? (
-          <>守护长辈的<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">数字防线</span></>
+          <>守护您的<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">数字防线</span></>
         ) : (
-          <>Protecting Our Elders from <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Digital Scams</span></>
+          <>Your Digital <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Defense Line</span></>
         )}
       </motion.h1>
 
