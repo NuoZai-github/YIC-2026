@@ -16,19 +16,19 @@ db.lock
 *.sw?
 
 # Frontend dependencies and build
-/frontend/node_modules/
-/frontend/.pnp
-/frontend/.pnp.*
-/frontend/.yarn/*
-!/frontend/.yarn/patches
-!/frontend/.yarn/plugins
-!/frontend/.yarn/releases
-!/frontend/.yarn/versions
-/frontend/coverage
-/frontend/.next/
-/frontend/out/
-/frontend/build
-/frontend/*.tsbuildinfo
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+coverage
+.next/
+out/
+build
+*.tsbuildinfo
 
 # Debug files
 npm-debug.log*
