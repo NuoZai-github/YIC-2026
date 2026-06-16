@@ -15,7 +15,7 @@ export default function Navbar() {
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <span className="font-black text-xl sm:text-2xl text-gray-900 tracking-tight">
-              {lang === "zh" ? "反诈护航员" : "Scam Guard"}
+              {lang === "zh" ? "智盾" : "Smart Shield"}
             </span>
           </div>
 

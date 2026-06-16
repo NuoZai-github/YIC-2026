@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scam Guard | 反诈护航员",
+  title: "智盾 | Smart Shield",
   description: "Protecting users worldwide from digital scams with local AI.",
 };
 

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- i18n Dictionaries ---
 const dict = {
   zh: {
-    title: "安全小助手",
+    title: "智盾分析引擎",
     subtitle: "把觉得可疑的信息发给我，我帮你把关！",
     placeholder: "在这里输入、粘贴信息，或者使用下方的快捷按钮...",
     clear: "清空",
@@ -26,7 +26,7 @@ const dict = {
     warningFooter: "⚠️ 千万不要转账！千万不要点链接！"
   },
   en: {
-    title: "Safety Assistant",
+    title: "Smart Shield Engine",
     subtitle: "Send me suspicious messages, I'll check them for you!",
     placeholder: "Type, paste your message here, or use the quick buttons below...",
     clear: "Clear",
