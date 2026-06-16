@@ -85,8 +85,9 @@ export default function DetectorUI() {
     formData.append("file", file);
 
     try {
-      // Pointing to local FastAPI backend
-      const res = await fetch("http://localhost:8000/api/analyze/image", {
+      // Pointing to public or local FastAPI backend
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/analyze/image`, {
         method: "POST",
         body: formData,
       });
@@ -118,7 +119,8 @@ export default function DetectorUI() {
     setErrorMsg("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/analyze/text", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/analyze/text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
