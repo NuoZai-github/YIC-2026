@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2:1.5b" # Or "llama3"
+MODEL_NAME = "llama3" # Upgraded for better reasoning
 DB_PATH = "feedback.db"
 
 # ================= DB Init =================
@@ -165,56 +165,56 @@ def check_fuzzy_feedback_match(text: str):
 
 async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
     text_lower = suspicious_text.lower().strip()
+    system_prompt = SYSTEM_PROMPT_ZH if language == "zh" else SYSTEM_PROMPT_EN
     
-    # ================= 铁律架构升级：模糊命中记忆 (Fuzzy Match Memory) =================
+    # ================= 铁律架构升级：让大模型润色管理员指令 =================
     fuzzy_match = check_fuzzy_feedback_match(text_lower)
     if fuzzy_match:
         is_danger_val = bool(fuzzy_match[0])
-        return {
-            "status": "success",
-            "is_danger": is_danger_val,
-            "analysis": "【管理员经验库高度相似命中】\n\n" + fuzzy_match[1] if language == "zh" else "[Admin Verified Memory Hit (Similar)]\n\n" + fuzzy_match[1]
-        }
-    # ========================================================================
-
-    url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    has_url = bool(url_pattern.search(text_lower))
-    
-    safe_physical_actions_zh = ["前往邻近的", "前往附近", "分行", "柜台办理", "税务局分行", "派出所", "携带相关", "营业厅", "卡背面", "实体卡"]
-    safe_physical_actions_en = ["branch", "counter", "tax office", "police station", "back of your card", "physical card"]
-    safe_actions = safe_physical_actions_zh if language == "zh" else safe_physical_actions_en
-    
-    system_prompt = SYSTEM_PROMPT_ZH if language == "zh" else SYSTEM_PROMPT_EN
-
-    if any(kw in text_lower for kw in safe_actions) and not has_url:
-        hint_zh = "\n\n【系统强制提示】：由于信息中要求用户亲自前往线下实体机构（如分行、柜台等），这通常是真实的官方机构。骗子不敢让用户线下见面。请务必判断为【安全】，并结合对方发送的具体信息（如快递公司、银行名），向用户解释为什么去实体机构是安全的。"
-        hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message asks the user to physically go to an official location (e.g., branch, counter), this is usually a real official entity. Scammers avoid physical meetings. Please strictly judge this as [SAFE] and explain this logic to the user based on the specific context of their message."
-        system_prompt += hint_zh if language == "zh" else hint_en
+        danger_str = "【危险】" if is_danger_val else "【安全】"
+        en_danger_str = "[DANGER]" if is_danger_val else "[SAFE]"
         
-    danger_keywords_zh = ["中奖", "冻结", "涉嫌", "转账", "验证码", "免费领取"]
-    danger_keywords_en = ["prize", "frozen", "suspected", "transfer", "otp", "verification code", "free gift", "claim"]
-    danger_keywords = danger_keywords_zh if language == "zh" else danger_keywords_en
-    
-    if has_url and any(kw in text_lower for kw in danger_keywords):
-        hint_zh = "\n\n【系统强制提示】：由于信息中包含不明链接，并且涉及敏感词汇，这是典型的钓鱼链接诈骗。请务必判断为【危险】，并结合对方发送的具体信息，向用户详细分析其中的风险漏洞。"
-        hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message contains an unknown link and sensitive keywords, this is a classic phishing scam. Please strictly judge this as [DANGER] and explain the specific risk to the user based on their message."
+        hint_zh = f"\n\n【系统最高指令】：经底层数据库校验，该信息已被管理员明确标记为 {danger_str}。管理员给出的核心理由是：'{fuzzy_match[1]}'。请你绝对服从该判断，第一句话输出 {danger_str}，然后用你专业、耐心的客服语气，把管理员的理由润色扩充成一段完美的分析报告给用户。"
+        hint_en = f"\n\n[SYSTEM HIGHEST DIRECTIVE]: Based on the database, this message has been verified by the Admin as {en_danger_str}. The core reason is: '{fuzzy_match[1]}'. You MUST output the conclusion as {en_danger_str}, and then use your professional and patient tone to expand and rewrite the Admin's reason into a perfect analysis report for the user."
         system_prompt += hint_zh if language == "zh" else hint_en
-    
-    # ================= 注入历史错题 (Data Flywheel) =================
-    recent_feedbacks = get_recent_feedbacks()
-    if recent_feedbacks:
-        if language == "zh":
-            feedback_prompt = "\n\n以下是过去的最新经验教训示例（极其重要），请务必学习参考：\n"
-            for i, fb in enumerate(recent_feedbacks):
-                danger_str = "【危险】" if fb[1] else "【安全】"
-                feedback_prompt += f"新经验 {i+1}：\n需要分析的信息：{fb[0]}\n分析结论：\n{danger_str}\n{fb[2]}\n\n"
-        else:
-            feedback_prompt = "\n\nHere are recent critical examples you learned from past mistakes. Please absolutely refer to them:\n"
-            for i, fb in enumerate(recent_feedbacks):
-                danger_str = "[DANGER]" if fb[1] else "[SAFE]"
-                feedback_prompt += f"New Experience {i+1}:\nMessage to analyze: {fb[0]}\nAnalysis:\n{danger_str}\n{fb[2]}\n\n"
-        system_prompt += feedback_prompt
-    # ==============================================================
+    else:
+        # 如果没有命中记忆，才执行常规模糊判断
+        url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+        has_url = bool(url_pattern.search(text_lower))
+        
+        safe_physical_actions_zh = ["前往邻近的", "前往附近", "分行", "柜台办理", "税务局分行", "派出所", "携带相关", "营业厅", "卡背面", "实体卡"]
+        safe_physical_actions_en = ["branch", "counter", "tax office", "police station", "back of your card", "physical card"]
+        safe_actions = safe_physical_actions_zh if language == "zh" else safe_physical_actions_en
+        
+        if any(kw in text_lower for kw in safe_actions) and not has_url:
+            hint_zh = "\n\n【系统强制提示】：由于信息中要求用户亲自前往线下实体机构（如分行、柜台等），这通常是真实的官方机构。骗子不敢让用户线下见面。请务必判断为【安全】，并结合对方发送的具体信息（如快递公司、银行名），向用户解释为什么去实体机构是安全的。"
+            hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message asks the user to physically go to an official location (e.g., branch, counter), this is usually a real official entity. Scammers avoid physical meetings. Please strictly judge this as [SAFE] and explain this logic to the user based on the specific context of their message."
+            system_prompt += hint_zh if language == "zh" else hint_en
+            
+        danger_keywords_zh = ["中奖", "冻结", "涉嫌", "转账", "验证码", "免费领取"]
+        danger_keywords_en = ["prize", "frozen", "suspected", "transfer", "otp", "verification code", "free gift", "claim"]
+        danger_keywords = danger_keywords_zh if language == "zh" else danger_keywords_en
+        
+        if has_url and any(kw in text_lower for kw in danger_keywords):
+            hint_zh = "\n\n【系统强制提示】：由于信息中包含不明链接，并且涉及敏感词汇，这是典型的钓鱼链接诈骗。请务必判断为【危险】，并结合对方发送的具体信息，向用户详细分析其中的风险漏洞。"
+            hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message contains an unknown link and sensitive keywords, this is a classic phishing scam. Please strictly judge this as [DANGER] and explain the specific risk to the user based on their message."
+            system_prompt += hint_zh if language == "zh" else hint_en
+        
+        # ================= 注入历史错题 (Data Flywheel) =================
+        recent_feedbacks = get_recent_feedbacks()
+        if recent_feedbacks:
+            if language == "zh":
+                feedback_prompt = "\n\n以下是过去的最新经验教训示例（极其重要），请务必学习参考：\n"
+                for i, fb in enumerate(recent_feedbacks):
+                    danger_str = "【危险】" if fb[1] else "【安全】"
+                    feedback_prompt += f"新经验 {i+1}：\n需要分析的信息：{fb[0]}\n分析结论：\n{danger_str}\n{fb[2]}\n\n"
+            else:
+                feedback_prompt = "\n\nHere are recent critical examples you learned from past mistakes. Please absolutely refer to them:\n"
+                for i, fb in enumerate(recent_feedbacks):
+                    danger_str = "[DANGER]" if fb[1] else "[SAFE]"
+                    feedback_prompt += f"New Experience {i+1}:\nMessage to analyze: {fb[0]}\nAnalysis:\n{danger_str}\n{fb[2]}\n\n"
+            system_prompt += feedback_prompt
+        # ==============================================================
 
     prompt = f"{system_prompt}\n\n需要分析的信息：\n{suspicious_text}\n\n分析结论：\n" if language == "zh" else f"{system_prompt}\n\nMessage to analyze:\n{suspicious_text}\n\nAnalysis:\n"
     
@@ -226,7 +226,7 @@ async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
     }
     
     try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=30)
+        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
         response.raise_for_status()
         result = response.json()
         response_text = result.get("response", "").strip()
