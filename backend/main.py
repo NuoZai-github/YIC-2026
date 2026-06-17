@@ -9,6 +9,7 @@ import json
 import re
 import sqlite3
 import os
+import difflib
 
 app = FastAPI(title="Smart Shield API")
 
@@ -145,8 +146,37 @@ def get_recent_feedbacks():
     except:
         return []
 
+def check_fuzzy_feedback_match(text: str):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT expected_is_danger, correction_text, original_text FROM feedback ORDER BY timestamp DESC')
+        results = cursor.fetchall()
+        conn.close()
+        
+        for expected_is_danger, correction_text, original_text in results:
+            # 使用 difflib 计算相似度 (Ratio)
+            similarity = difflib.SequenceMatcher(None, text.lower().strip(), original_text.lower().strip()).ratio()
+            if similarity > 0.85: # 只要相似度大于 85%（比如只换了单号），就认定为命中
+                return (expected_is_danger, correction_text)
+        return None
+    except:
+        return None
+
 async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
-    text_lower = suspicious_text.lower()
+    text_lower = suspicious_text.lower().strip()
+    
+    # ================= 铁律架构升级：模糊命中记忆 (Fuzzy Match Memory) =================
+    fuzzy_match = check_fuzzy_feedback_match(text_lower)
+    if fuzzy_match:
+        is_danger_val = bool(fuzzy_match[0])
+        return {
+            "status": "success",
+            "is_danger": is_danger_val,
+            "analysis": "【管理员经验库高度相似命中】\n\n" + fuzzy_match[1] if language == "zh" else "[Admin Verified Memory Hit (Similar)]\n\n" + fuzzy_match[1]
+        }
+    # ========================================================================
+
     url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
     has_url = bool(url_pattern.search(text_lower))
     
@@ -154,25 +184,21 @@ async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
     safe_physical_actions_en = ["branch", "counter", "tax office", "police station", "back of your card", "physical card"]
     safe_actions = safe_physical_actions_zh if language == "zh" else safe_physical_actions_en
     
+    system_prompt = SYSTEM_PROMPT_ZH if language == "zh" else SYSTEM_PROMPT_EN
+
     if any(kw in text_lower for kw in safe_actions) and not has_url:
-        return {
-            "status": "success",
-            "is_danger": False,
-            "analysis": "这是一条【真实的官方提醒】！\n\n系统分析：这条信息要求您亲自前往官方实体机构或拨打实体卡背面的官方电话。骗子绝不敢让您去实体机构。\n\n结论：请放心，这不是诈骗。" if language == "zh" else "This is a [real official alert]!\n\nSystem Analysis: The message asks you to go to a physical official location or call the number on the back of your card. Scammers never ask you to go to real physical branches.\n\nConclusion: Rest assured, this is not a scam."
-        }
+        hint_zh = "\n\n【系统强制提示】：由于信息中要求用户亲自前往线下实体机构（如分行、柜台等），这通常是真实的官方机构。骗子不敢让用户线下见面。请务必判断为【安全】，并结合对方发送的具体信息（如快递公司、银行名），向用户解释为什么去实体机构是安全的。"
+        hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message asks the user to physically go to an official location (e.g., branch, counter), this is usually a real official entity. Scammers avoid physical meetings. Please strictly judge this as [SAFE] and explain this logic to the user based on the specific context of their message."
+        system_prompt += hint_zh if language == "zh" else hint_en
         
     danger_keywords_zh = ["中奖", "冻结", "涉嫌", "转账", "验证码", "免费领取"]
     danger_keywords_en = ["prize", "frozen", "suspected", "transfer", "otp", "verification code", "free gift", "claim"]
     danger_keywords = danger_keywords_zh if language == "zh" else danger_keywords_en
     
     if has_url and any(kw in text_lower for kw in danger_keywords):
-         return {
-            "status": "success",
-            "is_danger": True,
-            "analysis": "请注意，这是典型的【钓鱼网址诈骗】！\n\n系统分析：信息包含不明链接，并制造恐慌或诱惑。骗子想骗您输入密码或验证码。\n\n结论：千万不要点击链接！直接删除！" if language == "zh" else "Please note, this is a classic [Phishing Link Scam]!\n\nSystem Analysis: The message contains an unknown link and tries to create panic or temptation. Scammers want you to click and enter passwords.\n\nConclusion: NEVER click the link! Delete this immediately!"
-        }
-
-    system_prompt = SYSTEM_PROMPT_ZH if language == "zh" else SYSTEM_PROMPT_EN
+        hint_zh = "\n\n【系统强制提示】：由于信息中包含不明链接，并且涉及敏感词汇，这是典型的钓鱼链接诈骗。请务必判断为【危险】，并结合对方发送的具体信息，向用户详细分析其中的风险漏洞。"
+        hint_en = "\n\n[SYSTEM FORCE HINT]: Because the message contains an unknown link and sensitive keywords, this is a classic phishing scam. Please strictly judge this as [DANGER] and explain the specific risk to the user based on their message."
+        system_prompt += hint_zh if language == "zh" else hint_en
     
     # ================= 注入历史错题 (Data Flywheel) =================
     recent_feedbacks = get_recent_feedbacks()
