@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Mic, ClipboardPaste, AlertTriangle, ShieldCheck, Loader2, Volume2, Square } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect } from "react";
+import { Mic, Image as ImageIcon, Send, Loader2, AlertTriangle, CheckCircle, ShieldCheck, ThumbsUp, ThumbsDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // --- i18n Dictionaries ---
 const dict = {
@@ -11,339 +11,415 @@ const dict = {
     subtitle: "把觉得可疑的信息发给我，我帮你把关！",
     placeholder: "在这里输入、粘贴信息，或者使用下方的快捷按钮...",
     clear: "清空",
-    paste: "一键粘贴",
-    uploadImage: "传截图",
-    holdToSpeak: "按住说话",
-    stopRecording: "停止录音",
-    analyzeBtn: "帮我看看是不是骗局",
-    analyzing: "正在仔细帮您查看...",
-    errEmpty: "请先输入或粘贴需要检测的内容！",
-    errClipboard: "无法读取剪贴板，请手动粘贴。",
-    errServer: "服务器连接失败，请确保后台已运行。",
-    errAnalysis: "分析失败，请重试。",
-    warningTitle: "警告：极大可能是诈骗！",
-    safeTitle: "放心：这是安全的",
-    warningFooter: "⚠️ 千万不要转账！千万不要点链接！"
+    image: "传截图",
+    voice: "语音输入 (开发中)",
+    analyze: "立即分析",
+    analyzing: "AI 深度分析中...",
+    resultTitle: "分析结果",
+    resultDanger: "发现风险",
+    resultSafe: "安全",
+    warningFooter: "⚠️ 千万不要转账！千万不要点链接！",
+    feedbackAccurate: "准确",
+    feedbackInaccurate: "误判了，我要纠错",
+    correctionTitle: "管理员纠错 (Data Flywheel)",
+    correctionType: "正确的判断应该是：",
+    isDangerOption: "这是诈骗 / 危险信息 (DANGER)",
+    isSafeOption: "这是安全的 (SAFE)",
+    correctionPlaceholder: "请简短告诉 AI 为什么（选填）...",
+    passwordPlaceholder: "请输入管理员密码",
+    submitCorrection: "提交纠错",
+    cancel: "取消",
+    feedbackSuccess: "感谢！已写入记忆数据库，AI 将在下次分析中学习此经验。"
   },
   en: {
     title: "Smart Shield Engine",
     subtitle: "Send me suspicious messages, I'll check them for you!",
     placeholder: "Type, paste your message here, or use the quick buttons below...",
     clear: "Clear",
-    paste: "Paste",
-    uploadImage: "Upload Image",
-    holdToSpeak: "Hold to Speak",
-    stopRecording: "Stop Recording",
-    analyzeBtn: "Check if this is a scam",
-    analyzing: "Checking carefully for you...",
-    errEmpty: "Please enter or paste content to check first!",
-    errClipboard: "Could not read clipboard. Please paste manually.",
-    errServer: "Server connection failed. Please ensure backend is running.",
-    errAnalysis: "Analysis failed. Please try again.",
-    warningTitle: "WARNING: High Probability of Scam!",
-    safeTitle: "SAFE: This is secure",
-    warningFooter: "⚠️ NEVER transfer money! NEVER click the links!"
+    image: "Image",
+    voice: "Voice (WIP)",
+    analyze: "Analyze",
+    analyzing: "AI Analyzing...",
+    resultTitle: "Analysis Result",
+    resultDanger: "Danger Detected",
+    resultSafe: "Safe",
+    warningFooter: "⚠️ Do NOT transfer money! Do NOT click links!",
+    feedbackAccurate: "Accurate",
+    feedbackInaccurate: "Incorrect, I want to fix this",
+    correctionTitle: "Admin Correction (Data Flywheel)",
+    correctionType: "The correct judgment is:",
+    isDangerOption: "This is a Scam / Danger (DANGER)",
+    isSafeOption: "This is Safe (SAFE)",
+    correctionPlaceholder: "Briefly tell AI why (optional)...",
+    passwordPlaceholder: "Admin Password",
+    submitCorrection: "Submit Correction",
+    cancel: "Cancel",
+    feedbackSuccess: "Thanks! Written to memory DB. AI will learn from this in the next analysis."
   }
 };
 
 export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
-  const [text, setText] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<{ is_danger: boolean; analysis: string; extracted_text?: string } | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const speechRecognitionRef = useRef<any>(null);
-  
   const t = dict[lang];
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        
-        recognition.onresult = (event: any) => {
-          let currentTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              currentTranscript += transcript;
-            }
-          }
-          if (currentTranscript) {
-             setText(prev => prev + (prev ? " " : "") + currentTranscript);
-          }
-        };
+  const [inputText, setInputText] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<{ status: string; is_danger?: boolean; analysis?: string; message?: string; extracted_text?: string } | null>(null);
 
-        recognition.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
-          setIsRecording(false);
-        };
+  // Data Flywheel States
+  const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+  const [correctionType, setCorrectionType] = useState<"danger" | "safe">("danger");
+  const [correctionText, setCorrectionText] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-        speechRecognitionRef.current = recognition;
-      }
-    }
-  }, []);
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+  };
 
-  // Update recognition language when UI language changes
-  useEffect(() => {
-    if (speechRecognitionRef.current) {
-      speechRecognitionRef.current.lang = lang === "zh" ? 'zh-CN' : 'en-US';
-    }
-    // Clear results when switching language to avoid mixed language UI
-    setResult(null);
-    setErrorMsg("");
-  }, [lang]);
-
-  const handlePaste = async () => {
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      if (clipboardText) {
-        setText(clipboardText);
-      }
-    } catch (err) {
-      setErrorMsg(t.errClipboard);
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+      setImagePreviewUrl(URL.createObjectURL(file));
+      setInputText("");
+      setResult(null);
+      setFeedbackGiven(false);
     }
   };
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      speechRecognitionRef.current?.stop();
-      setIsRecording(false);
-    } else {
-      setText("");
-      speechRecognitionRef.current?.start();
-      setIsRecording(true);
-    }
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleAnalyze = async () => {
+    if (!inputText.trim() && !selectedImage) return;
 
     setIsAnalyzing(true);
     setResult(null);
-    setErrorMsg("");
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("language", lang);
+    setFeedbackGiven(false);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/analyze/image`, {
-        method: "POST",
-        headers: {
-          "Bypass-Tunnel-Reminder": "true"
-        },
-        body: formData,
-      });
-      const data = await res.json();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       
-      if (data.status === "success") {
-        setResult(data);
-        if (data.extracted_text) {
-          setText(data.extracted_text);
-        }
+      let res;
+      if (selectedImage) {
+        const formData = new FormData();
+        formData.append("file", selectedImage);
+        formData.append("language", lang);
+
+        res = await fetch(`${apiUrl}/api/analyze/image`, {
+          method: "POST",
+          headers: {
+            "Bypass-Tunnel-Reminder": "true"
+          },
+          body: formData,
+        });
       } else {
-        setErrorMsg(data.message || t.errAnalysis);
+        res = await fetch(`${apiUrl}/api/analyze/text`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Bypass-Tunnel-Reminder": "true"
+          },
+          body: JSON.stringify({ text: inputText, language: lang }),
+        });
       }
-    } catch (err) {
-      setErrorMsg(t.errServer);
+
+      const data = await res.json();
+      setResult(data);
+      
+      if (data.extracted_text) {
+          setInputText(data.extracted_text);
+      }
+
+      if (data.status === "success" && data.analysis) {
+        const utterance = new SpeechSynthesisUtterance(data.analysis);
+        utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
+        window.speechSynthesis.speak(utterance);
+      }
+      
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      setResult({ status: "error", message: lang === "zh" ? "无法连接到服务器，请确保后台正在运行。" : "Cannot connect to server. Ensure backend is running." });
     } finally {
       setIsAnalyzing(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const analyzeText = async () => {
-    if (!text.trim()) {
-      setErrorMsg(t.errEmpty);
+  const submitFeedback = async () => {
+    if (!adminPassword.trim()) {
+      alert(lang === "zh" ? "必须输入管理员密码" : "Admin password is required");
       return;
     }
-
-    setIsAnalyzing(true);
-    setResult(null);
-    setErrorMsg("");
-
+    setFeedbackLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/analyze/text`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/feedback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Bypass-Tunnel-Reminder": "true"
         },
-        body: JSON.stringify({ text, language: lang }),
+        body: JSON.stringify({
+          original_text: inputText,
+          expected_is_danger: correctionType === "danger",
+          correction_text: correctionText,
+          password: adminPassword
+        }),
       });
-      const data = await res.json();
       
-      if (data.status === "success") {
-        setResult(data);
+      if (res.ok) {
+        alert(t.feedbackSuccess);
+        setShowCorrectionModal(false);
+        setFeedbackGiven(true);
+        setCorrectionText("");
+        setAdminPassword("");
       } else {
-        setErrorMsg(data.message || t.errAnalysis);
+        const err = await res.json();
+        alert(`Error: ${err.detail}`);
       }
-    } catch (err) {
-      setErrorMsg(t.errServer);
+    } catch (error) {
+      alert("Failed to submit feedback");
     } finally {
-      setIsAnalyzing(false);
+      setFeedbackLoading(false);
     }
   };
 
-  const speakResult = () => {
-    if (!result) return;
-    const utterance = new SpeechSynthesisUtterance(result.analysis);
-    utterance.lang = lang === "zh" ? 'zh-CN' : 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  };
-
   return (
-    <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-3xl shadow-xl border border-gray-100 mt-4 sm:mt-8 relative z-10">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">{t.title}</h1>
-        <p className="text-lg sm:text-xl text-gray-600">{t.subtitle}</p>
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="bg-blue-600 p-6 sm:p-8 text-white relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-500 rounded-full blur-3xl opacity-50"></div>
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold flex items-center mb-2">
+              <ShieldCheck className="mr-3 w-8 h-8 text-blue-200" />
+              {t.title}
+            </h2>
+            <p className="text-blue-100 opacity-90">{t.subtitle}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Main Input Area */}
+      <div className="p-6 sm:p-8">
         <div className="relative">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t.placeholder}
-            className="w-full h-40 sm:h-48 p-4 sm:p-6 text-xl sm:text-2xl border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all resize-none"
+          {imagePreviewUrl ? (
+            <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center p-2 h-64">
+              <img src={imagePreviewUrl} alt="Preview" className="max-h-full max-w-full object-contain rounded-xl" />
+              <button 
+                onClick={clearImage}
+                className="absolute top-4 right-4 bg-gray-900/60 hover:bg-gray-900 text-white px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm transition"
+              >
+                {t.clear}
+              </button>
+            </div>
+          ) : (
+            <textarea
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl p-5 pl-5 pr-5 min-h-[140px] focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-lg resize-none"
+              placeholder={t.placeholder}
+              value={inputText}
+              onChange={handleTextChange}
+            />
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <input 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleImageSelect}
           />
-          {text && (
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full font-medium transition active:scale-95"
+          >
+            <ImageIcon className="w-5 h-5 mr-2 text-gray-500" />
+            {t.image}
+          </button>
+          <button 
+            className="flex items-center px-5 py-2.5 bg-gray-100 text-gray-400 rounded-full font-medium cursor-not-allowed"
+          >
+            <Mic className="w-5 h-5 mr-2 text-gray-400" />
+            {t.voice}
+          </button>
+
+          <div className="flex-grow"></div>
+
+          {(inputText.trim() || selectedImage) && (
             <button 
-              onClick={() => setText("")} 
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 font-medium"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing}
+              className={`flex items-center px-8 py-3 rounded-full font-bold text-white shadow-lg transition-all active:scale-95 ${
+                isAnalyzing ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 hover:shadow-xl"
+              }`}
             >
-              {t.clear}
+              {isAnalyzing ? (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t.analyzing}</>
+              ) : (
+                <><Send className="w-5 h-5 mr-2" /> {t.analyze}</>
+              )}
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <button
-            onClick={handlePaste}
-            className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
-          >
-            <ClipboardPaste className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600 mb-2" />
-            <span className="text-base sm:text-xl font-medium text-gray-700">{t.paste}</span>
-          </button>
-          
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 transition-colors active:scale-95"
-          >
-            <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-green-600 mb-2" />
-            <span className="text-base sm:text-xl font-medium text-gray-700">{t.uploadImage}</span>
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-            />
-          </button>
+        {/* Results Area */}
+        <AnimatePresence>
+          {result && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: "auto", marginTop: 32 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-gray-100 pt-8">
+                {result.status === "error" ? (
+                  <div className="bg-red-50 text-red-600 p-5 rounded-2xl flex items-start border border-red-100">
+                    <AlertTriangle className="w-6 h-6 mr-3 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-lg mb-1">Error</h4>
+                      <p>{result.message}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`p-6 sm:p-8 rounded-3xl border-2 shadow-sm ${
+                    result.is_danger 
+                      ? "bg-red-50 border-red-200 text-red-900" 
+                      : "bg-green-50 border-green-200 text-green-900"
+                  }`}>
+                    <div className="flex items-center mb-4">
+                      {result.is_danger ? (
+                        <AlertTriangle className="w-8 h-8 text-red-500 mr-3 shrink-0" />
+                      ) : (
+                        <CheckCircle className="w-8 h-8 text-green-500 mr-3 shrink-0" />
+                      )}
+                      <h3 className="text-2xl font-black">
+                        {result.is_danger ? t.resultDanger : t.resultSafe}
+                      </h3>
+                    </div>
+                    
+                    <div className="prose prose-lg max-w-none">
+                      <p className="whitespace-pre-wrap leading-relaxed text-lg font-medium opacity-90">
+                        {result.analysis}
+                      </p>
+                    </div>
 
-          <button
-            onClick={toggleRecording}
-            className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all active:scale-95 ${
-              isRecording 
-                ? 'bg-red-50 border-red-200 animate-pulse' 
-                : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
-            }`}
-          >
-            {isRecording ? (
-              <Square className="w-8 h-8 sm:w-10 sm:h-10 text-red-600 mb-2 fill-current" />
-            ) : (
-              <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500 mb-2" />
-            )}
-            <span className={`text-base sm:text-xl font-medium ${isRecording ? 'text-red-700' : 'text-gray-700'}`}>
-              {isRecording ? t.stopRecording : t.holdToSpeak}
-            </span>
-          </button>
-        </div>
+                    {result.is_danger && (
+                      <div className="mt-6 pt-4 border-t border-red-200/50">
+                        <p className="font-bold text-red-600 animate-pulse">
+                          {t.warningFooter}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-        <button
-          onClick={analyzeText}
-          disabled={isAnalyzing || (!text.trim() && !isRecording)}
-          className="w-full mt-6 py-5 sm:py-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-2xl text-xl sm:text-3xl font-bold shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center"
-        >
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin mr-3" />
-              {t.analyzing}
-            </>
-          ) : (
-            t.analyzeBtn
+                {/* Data Flywheel Feedback Buttons */}
+                {result.status === "success" && !feedbackGiven && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex justify-center items-center gap-4 mt-6"
+                  >
+                    <button 
+                      onClick={() => setFeedbackGiven(true)}
+                      className="flex items-center px-5 py-2 text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-full font-medium transition"
+                    >
+                      <ThumbsUp className="w-4 h-4 mr-2" /> {t.feedbackAccurate}
+                    </button>
+                    <button 
+                      onClick={() => setShowCorrectionModal(true)}
+                      className="flex items-center px-5 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-full font-medium transition"
+                    >
+                      <ThumbsDown className="w-4 h-4 mr-2" /> {t.feedbackInaccurate}
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
           )}
-        </button>
+        </AnimatePresence>
       </div>
 
-      {errorMsg && (
-        <div className="mt-6 p-4 bg-red-50 text-red-700 text-xl rounded-xl border border-red-200 text-center">
-          {errorMsg}
-        </div>
-      )}
-
+      {/* Correction Modal (Admin only) */}
       <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className={`mt-8 p-6 sm:p-8 rounded-3xl border-2 shadow-sm ${
-              result.is_danger 
-                ? 'bg-red-50 border-red-200' 
-                : 'bg-green-50 border-green-200'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                {result.is_danger ? (
-                  <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-red-600 mr-4" />
-                ) : (
-                  <ShieldCheck className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mr-4" />
-                )}
-                <h2 className={`text-2xl sm:text-4xl font-bold ${result.is_danger ? 'text-red-700' : 'text-green-700'}`}>
-                  {result.is_danger ? t.warningTitle : t.safeTitle}
-                </h2>
+        {showCorrectionModal && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-lg shadow-2xl"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4">{t.correctionTitle}</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.correctionType}</label>
+                  <select 
+                    value={correctionType}
+                    onChange={(e) => setCorrectionType(e.target.value as "danger" | "safe")}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="danger">{t.isDangerOption}</option>
+                    <option value="safe">{t.isSafeOption}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <textarea 
+                    value={correctionText}
+                    onChange={(e) => setCorrectionText(e.target.value)}
+                    placeholder={t.correctionPlaceholder}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 h-24 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                  />
+                </div>
+
+                <div>
+                  <input 
+                    type="password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder={t.passwordPlaceholder}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setShowCorrectionModal(false)}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button 
+                    onClick={submitFeedback}
+                    disabled={feedbackLoading}
+                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition flex justify-center items-center"
+                  >
+                    {feedbackLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.submitCorrection}
+                  </button>
+                </div>
               </div>
-              <button 
-                onClick={speakResult}
-                className="p-3 bg-white rounded-full shadow hover:bg-gray-50 text-blue-600 transition-colors"
-              >
-                <Volume2 className="w-8 h-8" />
-              </button>
-            </div>
-            
-            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-inner border border-gray-100">
-              <p className="text-xl sm:text-2xl leading-relaxed text-gray-800 whitespace-pre-wrap">
-                {result.analysis}
-              </p>
-            </div>
-            
-            {result.is_danger && (
-              <div className="mt-6 pt-6 border-t border-red-200/50">
-                <p className="text-xl sm:text-2xl font-bold text-red-600 text-center">
-                  {t.warningFooter}
-                </p>
-              </div>
-            )}
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }

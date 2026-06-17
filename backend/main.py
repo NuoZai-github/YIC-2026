@@ -7,8 +7,10 @@ from PIL import Image
 import io
 import json
 import re
+import sqlite3
+import os
 
-app = FastAPI(title="Anti-Scam API for Everyone")
+app = FastAPI(title="Smart Shield API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +22,26 @@ app.add_middleware(
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2:1.5b" # Or "llama3"
+DB_PATH = "feedback.db"
+
+# ================= DB Init =================
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_text TEXT,
+            expected_is_danger BOOLEAN,
+            correction_text TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+# ============================================
 
 SYSTEM_PROMPT_ZH = """你是一个充满耐心、语气专业的防诈骗助手，专门帮助用户识别骗局。
 不管收到什么信息，你的第一句话必须严格是【安全】或【危险】。
@@ -65,6 +87,30 @@ class TextAnalyzeRequest(BaseModel):
     text: str
     language: str = "zh"
 
+class FeedbackRequest(BaseModel):
+    original_text: str
+    expected_is_danger: bool
+    correction_text: str
+    password: str
+
+@app.post("/api/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    if request.password != "yic2026":
+        raise HTTPException(status_code=403, detail="管理员密码错误，无法提交纠错记录。(Incorrect admin password)")
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO feedback (original_text, expected_is_danger, correction_text)
+            VALUES (?, ?, ?)
+        ''', (request.original_text, request.expected_is_danger, request.correction_text))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Feedback saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 @app.post("/api/analyze/text")
 async def analyze_text(request: TextAnalyzeRequest):
     if not request.text.strip():
@@ -87,6 +133,17 @@ async def analyze_image(file: UploadFile = File(...), language: str = Form("zh")
         return analysis_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def get_recent_feedbacks():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT original_text, expected_is_danger, correction_text FROM feedback ORDER BY timestamp DESC LIMIT 3')
+        results = cursor.fetchall()
+        conn.close()
+        return results
+    except:
+        return []
 
 async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
     text_lower = suspicious_text.lower()
@@ -116,6 +173,23 @@ async def analyze_with_ollama(suspicious_text: str, language: str = "zh"):
         }
 
     system_prompt = SYSTEM_PROMPT_ZH if language == "zh" else SYSTEM_PROMPT_EN
+    
+    # ================= 注入历史错题 (Data Flywheel) =================
+    recent_feedbacks = get_recent_feedbacks()
+    if recent_feedbacks:
+        if language == "zh":
+            feedback_prompt = "\n\n以下是过去的最新经验教训示例（极其重要），请务必学习参考：\n"
+            for i, fb in enumerate(recent_feedbacks):
+                danger_str = "【危险】" if fb[1] else "【安全】"
+                feedback_prompt += f"新经验 {i+1}：\n需要分析的信息：{fb[0]}\n分析结论：\n{danger_str}\n{fb[2]}\n\n"
+        else:
+            feedback_prompt = "\n\nHere are recent critical examples you learned from past mistakes. Please absolutely refer to them:\n"
+            for i, fb in enumerate(recent_feedbacks):
+                danger_str = "[DANGER]" if fb[1] else "[SAFE]"
+                feedback_prompt += f"New Experience {i+1}:\nMessage to analyze: {fb[0]}\nAnalysis:\n{danger_str}\n{fb[2]}\n\n"
+        system_prompt += feedback_prompt
+    # ==============================================================
+
     prompt = f"{system_prompt}\n\n需要分析的信息：\n{suspicious_text}\n\n分析结论：\n" if language == "zh" else f"{system_prompt}\n\nMessage to analyze:\n{suspicious_text}\n\nAnalysis:\n"
     
     payload = {
