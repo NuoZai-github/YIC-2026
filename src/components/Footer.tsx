@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="flex items-center mb-4 md:mb-0">
           <ShieldCheck className="w-6 h-6 text-blue-500 mr-2" />
           <span className="text-xl font-bold text-white">
-            {lang === "zh" ? "智盾" : "Smart Shield"}
+            {lang === "zh" ? "JETSafe" : "JETSafe"}
           </span>
         </div>
         

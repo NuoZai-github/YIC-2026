@@ -33,7 +33,7 @@ export default function FeaturesSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            {lang === "zh" ? "为什么选择智盾？" : "Why Choose Smart Shield?"}
+            {lang === "zh" ? "为什么选择 JETSafe？" : "Why Choose JETSafe?"}
           </h2>
           <p className="text-xl text-gray-500 max-w-2xl mx-auto">
             {lang === "zh" ? "我们不仅是在做一个工具，而是在打造一面坚固的盾牌。" : "We're not just building a tool, we're forging a strong shield."}
