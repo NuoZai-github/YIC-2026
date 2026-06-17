@@ -6,7 +6,15 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  }
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/proxy/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://orange-stingray-28.loca.lt'}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

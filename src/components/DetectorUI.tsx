@@ -116,7 +116,7 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
     setFeedbackGiven(false);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = "/api/proxy";
       
       let res;
       if (selectedImage) {
@@ -164,7 +164,7 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
     }
     setFeedbackLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = "/api/proxy";
       const res = await fetch(`${apiUrl}/api/feedback`, {
         method: "POST",
         headers: {
