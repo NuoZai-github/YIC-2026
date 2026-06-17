@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Mic, Image as ImageIcon, Send, Loader2, AlertTriangle, CheckCircle, ShieldCheck, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Mic, Image as ImageIcon, Send, Loader2, AlertTriangle, CheckCircle, ShieldCheck, ThumbsUp, ThumbsDown, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- i18n Dictionaries ---
@@ -101,6 +101,13 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleSpeak = (text: string) => {
+    window.speechSynthesis.cancel(); // 每次点击前先停止上次的语音，防止重叠
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleAnalyze = async () => {
     if (!inputText.trim() && !selectedImage) return;
 
@@ -140,12 +147,6 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
       
       if (data.extracted_text) {
           setInputText(data.extracted_text);
-      }
-
-      if (data.status === "success" && data.analysis) {
-        const utterance = new SpeechSynthesisUtterance(data.analysis);
-        utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
-        window.speechSynthesis.speak(utterance);
       }
       
     } catch (error) {
@@ -309,6 +310,16 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
                       <h3 className="text-2xl font-black">
                         {result.is_danger ? t.resultDanger : t.resultSafe}
                       </h3>
+                      <div className="flex-grow"></div>
+                      <button 
+                        onClick={() => handleSpeak(result.analysis || "")}
+                        className={`flex items-center px-3 py-1.5 rounded-full text-sm font-bold transition-all ${
+                          result.is_danger ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"
+                        }`}
+                      >
+                        <Volume2 className="w-4 h-4 mr-1.5" />
+                        {lang === "zh" ? "语音播报" : "Listen"}
+                      </button>
                     </div>
                     
                     <div className="prose prose-lg max-w-none">
