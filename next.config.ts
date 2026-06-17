@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/proxy/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://orange-stingray-28.loca.lt'}/api/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://orange-stingray-28.loca.lt'}/:path*`,
       },
     ];
   },
