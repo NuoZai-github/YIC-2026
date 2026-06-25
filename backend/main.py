@@ -4,12 +4,15 @@ from pydantic import BaseModel
 import requests
 import pytesseract
 from PIL import Image
+from pillow_heif import register_heif_opener
 import io
 import json
 import re
 import sqlite3
 import os
 import difflib
+
+register_heif_opener()
 
 app = FastAPI(title="Smart Shield API")
 

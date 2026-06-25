@@ -140,9 +140,21 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
           },
           body: JSON.stringify({ text: inputText, language: lang }),
         });
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error("Invalid JSON response from server");
       }
 
-      const data = await res.json();
+      if (!res.ok) {
+        setResult({
+          status: "error",
+          message: data.detail || data.message || (lang === "zh" ? `请求失败 (状态码: ${res.status})` : `Request failed (Status: ${res.status})`)
+        });
+        return;
+      }
+
       setResult(data);
       
       if (data.extracted_text) {
