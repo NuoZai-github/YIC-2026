@@ -11,7 +11,7 @@ const dict = {
     subtitle: "把觉得可疑的信息发给我，我帮你把关！",
     placeholder: "在这里输入、粘贴信息，或者使用下方的快捷按钮...",
     clear: "清空",
-    image: "传截图",
+    image: "传截图 (开发中)",
     voice: "语音输入 (开发中)",
     analyze: "立即分析",
     analyzing: "AI 深度分析中...",
@@ -36,7 +36,7 @@ const dict = {
     subtitle: "Send me suspicious messages, I'll check them for you!",
     placeholder: "Type, paste your message here, or use the quick buttons below...",
     clear: "Clear",
-    image: "Image",
+    image: "Image (WIP)",
     voice: "Voice (WIP)",
     analyze: "Analyze",
     analyzing: "AI Analyzing...",
@@ -257,10 +257,9 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
             onChange={handleImageSelect}
           />
           <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full font-medium transition active:scale-95"
+            className="flex items-center px-5 py-2.5 bg-gray-100 text-gray-400 rounded-full font-medium cursor-not-allowed"
           >
-            <ImageIcon className="w-5 h-5 mr-2 text-gray-500" />
+            <ImageIcon className="w-5 h-5 mr-2 text-gray-400" />
             {t.image}
           </button>
           <button 
