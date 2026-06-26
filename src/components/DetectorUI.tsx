@@ -140,6 +140,7 @@ export default function DetectorUI({ lang }: { lang: "zh" | "en" }) {
           },
           body: JSON.stringify({ text: inputText, language: lang }),
         });
+      }
       let data;
       try {
         data = await res.json();
