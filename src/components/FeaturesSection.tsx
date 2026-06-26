@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/context/LanguageContext";
-import { Shield, Brain, Mic2 } from "lucide-react";
+import { Shield, Brain, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function FeaturesSection() {
@@ -17,14 +17,14 @@ export default function FeaturesSection() {
     {
       icon: <Brain className="w-8 h-8 text-white" />,
       color: "bg-blue-600",
-      zh: { title: "本地 AI 大脑", desc: "采用最新开源的大型语言模型，结合超过 10 万条真实诈骗语料训练，精准识别各种套路。" },
-      en: { title: "Local AI Brain", desc: "Powered by the latest open-source LLMs, trained on over 100k real scam scenarios for precise detection." }
+      zh: { title: "动态知识库", desc: "我们的反诈模型随着新骗局的出现不断进化，始终走在诈骗分子的前面。" },
+      en: { title: "Dynamic Knowledge Base", desc: "Our anti-scam model continually evolves with new scams, always staying one step ahead." }
     },
     {
-      icon: <Mic2 className="w-8 h-8 text-white" />,
+      icon: <Users className="w-8 h-8 text-white" />,
       color: "bg-purple-500",
-      zh: { title: "极简交互设计", desc: "大字号、语音输入、直接传截图。无需繁琐操作，结果直接语音播报，适合全球所有年龄层。" },
-      en: { title: "Universal Design", desc: "Voice input and image uploads. No typing needed, with spoken results, making it accessible for everyone." }
+      zh: { title: "社区纠错机制", desc: "通过用户反馈和管理员人工纠错的数据飞轮效应，让检测系统越用越准。" },
+      en: { title: "Community Feedback", desc: "A data flywheel powered by user feedback and admin corrections makes our detection increasingly accurate over time." }
     }
   ];
 
